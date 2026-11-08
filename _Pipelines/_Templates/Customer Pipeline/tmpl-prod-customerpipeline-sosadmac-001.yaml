@@ -1,0 +1,68 @@
+##### ---------------------- HEADER ---------------------- #####
+
+# Customer Azure DevOps Pipeline for Deploying Bicep Resources
+# This pipeline triggers a deployment using Bicep templates and a parameter file.
+
+# Authors: Michele Blum & Flavio Meyer
+# Creation date: 14.05.2026
+
+##### ---------------------- HEADER END ---------------------- #####
+
+##### ---------------------- TRIGGER ---------------------- #####
+
+trigger:
+- none
+
+##### ---------------------- TRIGGER END ---------------------- #####
+
+##### ---------------------- PULL REQUESTS ---------------------- #####
+
+pr:
+- none
+
+##### ---------------------- PULL REQUESTS END ---------------------- #####
+
+##### ---------------------- NAME ---------------------- #####
+
+name: 'CustomerPipeline-$(Date:yyyyMMdd)$(Rev:.r)' # <--- change the name of the pipeline to your desired format and customer name
+
+##### ---------------------- NAME END ---------------------- #####
+
+##### ---------------------- PARAMETERS ---------------------- #####
+
+parameters:
+- name: azureServiceConnection
+  type: string
+  default: '<your-connection-name>'
+
+##### ---------------------- PARAMETERS END ---------------------- #####
+
+##### ---------------------- VARIABLES ---------------------- #####
+
+variables:
+  vmImageName: 'ubuntu-latest'
+  location: 'switzerlandnorth'
+  templateBicepFile: '_Bicep/_Templates/main.bicep'
+  csmBicepParametersFile: '_Bicep/_Templates/main.bicepparam' # <--- change to your bicepparam-file path (relative to repo root)
+
+##### ---------------------- VARIABLES END ---------------------- #####
+
+##### ---------------------- POOL ---------------------- #####
+
+pool:
+  vmImage: $(vmImageName)
+
+##### ---------------------- POOL END ---------------------- #####
+
+##### ---------------------- STAGES ---------------------- #####
+
+# Include the static pipeline as a template
+stages:
+  - template: /_Pipelines/_Templates/SOSADMaC/tmpl-prod-mainpipeline-sosadmac-001.yaml
+    parameters:
+      location: ${{ variables.location }}
+      serviceConnection: ${{ parameters.azureServiceConnection }}
+      templateBicepFile: ${{ variables.templateBicepFile }}
+      csmBicepParametersFile: ${{ variables.csmBicepParametersFile }}
+
+##### ---------------------- STAGES END ---------------------- #####

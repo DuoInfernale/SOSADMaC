@@ -1,0 +1,159 @@
+##### ---------------------- HEADER ---------------------- #####
+
+# Azure DevOps Pipeline for Deploying Azure Resources with Bicep Templates.
+# This pipeline automates linting, validation, previewing, and deployment via Azure CLI and Bicep.
+
+# Authors: Michele Blum & Flavio Meyer
+# Creation date: 14.05.2026
+
+##### ---------------------- HEADER END ---------------------- #####
+
+
+##### ---------------------- PARAMETERS ---------------------- #####
+
+parameters:
+  - name: location
+    type: string
+
+  - name: serviceConnection
+    type: string
+
+  - name: templateBicepFile
+    type: string
+
+  - name: csmBicepParametersFile
+    type: string
+
+##### ---------------------- PARAMETERS END ---------------------- #####
+
+
+##### ---------------------- STAGES ---------------------- #####
+
+stages:
+
+  # ---------------------------------------------------------
+  # LINT
+  # ---------------------------------------------------------
+  - stage: Lint
+    jobs:
+      - job: LintCode
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: "Lint Bicep template"
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                az bicep build `
+                  --file "${{ parameters.templateBicepFile }}"
+          
+          - task: AzureCLI@2
+            displayName: "Register required resource providers"
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                Write-Host "Registering Azure Resource Providers for Bicep deployment..."
+                $providers = @(
+                'microsoft.aadiam'
+                'Microsoft.Insights'
+                'microsoft.operationalinsights'
+                )
+                
+                foreach ($p in $providers) {
+                Write-Host "Registering: $p"
+                az provider register --namespace $p
+                }
+                
+                Write-Host "Waiting 30 seconds for provider registration to propagate..."
+                Start-Sleep -Seconds 30
+                
+                Write-Host "Checking registration status..."
+                foreach ($p in $providers) {
+                $state = az provider show --namespace $p --query registrationState -o tsv
+                Write-Host "$p : $state"
+                }
+
+
+  # ---------------------------------------------------------
+  # VALIDATE
+  # ---------------------------------------------------------
+  - stage: Validate
+    dependsOn: Lint
+    jobs:
+      - job: ValidateBicepTemplate
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment tenant validate `
+                  --location "${{ parameters.location }}" `
+                  --template-file "${{ parameters.templateBicepFile }}" `
+                  --parameters "${{ parameters.csmBicepParametersFile }}"
+
+
+  # ---------------------------------------------------------
+  # PREVIEW (WHAT-IF)
+  # ---------------------------------------------------------
+  - stage: Preview
+    dependsOn: Validate
+    jobs:
+
+      - job: PreviewChanges
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment tenant what-if `
+                  --location "${{ parameters.location }}" `
+                  --template-file "${{ parameters.templateBicepFile }}" `
+                  --parameters "${{ parameters.csmBicepParametersFile }}"
+
+      - job: WaitForApproval
+        displayName: "Manual Preview Approval"
+        dependsOn: PreviewChanges
+        pool: server
+        steps:
+          - task: ManualValidation@0
+            inputs:
+              instructions: "Please review the WHAT-IF preview and approve deployment."
+              onTimeout: "reject"
+
+
+  # ---------------------------------------------------------
+  # DEPLOY
+  # ---------------------------------------------------------
+  - stage: Deploy
+    dependsOn: Preview
+    jobs:
+      - job: Deploy
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            continueOnError: false
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                az deployment tenant create `
+                  --location "${{ parameters.location }}" `
+                  --template-file "${{ parameters.templateBicepFile }}" `
+                  --parameters "${{ parameters.csmBicepParametersFile }}"
+
+##### ---------------------- STAGES END ---------------------- #####

@@ -1,0 +1,15 @@
+{
+  "Name": "Custom Resource Group Creator",
+  "Id": null,
+  "IsCustom": true,
+  "Description": "Allows creation of resource groups only. No additional permissions.",
+  "Actions": [
+    "Microsoft.Resources/subscriptions/resourceGroups/write"
+  ],
+  "NotActions": [],
+  "DataActions": [],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/86f85a66-4b01-45f2-9a98-25f13c1022f4"
+  ]
+}
