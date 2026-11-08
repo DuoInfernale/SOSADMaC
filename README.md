@@ -1,6 +1,6 @@
 # SOSADMaC — Break Glass Sign‑In Monitoring
 
-This repository contains infrastructure-as-code and pipeline assets for deploying the **Break Glass Sign‑In Monitoring** solution using Bicep templates. The deployment configures tenant- and subscription-scoped monitoring resources to capture and alert on "break glass" sign‑in activity in Entra ID (Azure AD).
+This repository contains infrastructure-as-code and pipeline assets for deploying the **Break Glass Sign‑In Monitoring** solution using Bicep templates. The deployment configures tenant- and subscription-scoped monitoring resources to capture and alert on "break glass" sign‑in activity in Entra ID.
 
 This README provides an entry point and the common steps required to deploy the Break Glass solution. For the full, solution-specific deployment steps, refer to the README in the [`_Bicep`](./_Bicep) folder.
 
